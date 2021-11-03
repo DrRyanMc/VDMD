@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 # Time grid
 N = 300 #20000
 t = np.logspace(-11,1.65,N) #-11 1.65
-t = np.logspace(-11,3.55,N)
+t = np.logspace(-11,3.55,N) #-11 3.55
+t = np.logspace(-11,3.00,N)
 
 dts = np.diff(np.append([0.0],t))
 
@@ -183,8 +184,17 @@ plt.grid()
 plt.xlim([-3.0,2.0])
 plt.show()
 
+#determine difference between VDMD eigenvalues and analytic eigenvalues
+alpha = np.sort(alpha)
+deigs = np.sort(deigs)
+eigs_diff = alpha.real - deigs.real
+eigs_diff = np.abs(eigs_diff)
+eigs_diff /= np.abs(alpha.real)
+eigs_diff *= 1e5 #pcm difference
+
 print("analytic",np.sort(alpha.real))
 print("DMD", np.sort(deigs))
+print("Diff",eigs_diff)
 
 # =============================================================================
 # # Solution with matrix exponential
