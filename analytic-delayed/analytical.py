@@ -5,9 +5,10 @@ from scipy.linalg import svd
 import matplotlib.pyplot as plt
 
 # Time grid
-N = 300
+N = 300 #20000
 t = np.logspace(-11,1.65,N) #-11 1.65
-#t = np.logspace(-10,3.55,N)
+t = np.logspace(-11,3.55,N) #-11 3.55
+t = np.logspace(-11,3.00,N)
 
 dts = np.diff(np.append([0.0],t))
 
@@ -40,9 +41,9 @@ mn    = 1.67493E-27 # kg
 v_new = np.sqrt(2*E_mid*eV_J/mn)*100.0 # cm/s
 
 # Buckling and leakage XS
-#R      = 11.7335 # Subcritical
-#R      = 11.735 # Supercritical
-R      = 11.74 # Supercritical
+R      = 11.7335 # Subcritical
+# R      = 11.735 # Supercritical
+# R      = 11.74 # Supercritical
 B_sq   = (np.pi/R)**2
 D      = 1/(3*SigmaT)
 SigmaL = D*B_sq
@@ -152,6 +153,7 @@ plt.xscale('log')
 plt.xlabel(r'$t$ [s]')
 plt.ylabel(r'$n$')
 plt.grid()
+plt.savefig("slab_lin_{}_{}.jpg".format(N,R),bbox_inches='tight' ,dpi=1200)
 plt.show()
 # loglog
 plt.plot(t,n_tot,'k')
@@ -168,6 +170,7 @@ for a in alpha:
     else:
         plt.axvline(-1/a,color='b',alpha=0.5)
 plt.ylim(bottom=2.4342013218279325e-15, top=5.50860258832892)
+plt.savefig("slab_log_{}_{}.jpg".format(N,R),bbox_inches='tight' ,dpi=1200)
 plt.show()
 
 # Plot eigenvalues
@@ -181,8 +184,17 @@ plt.grid()
 plt.xlim([-3.0,2.0])
 plt.show()
 
+#determine difference between VDMD eigenvalues and analytic eigenvalues
+alpha = np.sort(alpha)
+deigs = np.sort(deigs)
+eigs_diff = alpha.real - deigs.real
+eigs_diff = np.abs(eigs_diff)
+eigs_diff /= np.abs(alpha.real)
+eigs_diff *= 1e5 #pcm difference
+
 print("analytic",np.sort(alpha.real))
 print("DMD", np.sort(deigs))
+print("Diff",eigs_diff)
 
 # =============================================================================
 # # Solution with matrix exponential
