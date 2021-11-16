@@ -108,9 +108,6 @@ for n in range(N):
     n_tot_BE[n] = sum(np.divide(PHI_BE[:G,n+1],v))
     C_BE[:,n]   = PHI_BE[G:,n+1]
 
-# Save solution    
-np.savez('analytical.npz',t=t,phi=PHI[:G,:],n_tot=n_tot,C=C,alpha=alpha)
-
 #DMD
 #compute the derivative
 
