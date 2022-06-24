@@ -3,6 +3,7 @@ from scipy.linalg import eig
 from scipy.linalg import expm
 from scipy.linalg import svd
 import matplotlib.pyplot as plt
+from tabulate import tabulate
 
 # Time grid
 N = 300
@@ -26,6 +27,15 @@ decay       = data["decay"]
 beta_frac   = data["beta_frac"]
 #chi_delayed.fill(0.0);
 
+#print(tabulate(np.column_stack((range(1,13),E[0:-1]/1e6,SigmaT,SigmaF,v/1e9,nu_prompt+nu_delayed,chi_prompt[:,0])),
+               ("Group","E (MeV)","$\\Sigma_\\mathrm{t}$ (cm$^{-1}$)","$\\Sigma_\\mathrm{f}$ (cm$^{-1}$)","v (cm/ns)","$\\nu$","\\chi_\\mathrm{p}$"),
+               floatfmt=(".0f","f", ".5f", ".5f", ".5f", ".5f",".6f"),
+               tablefmt="latex_raw"))
+#rint(tabulate(np.column_stack((range(1,13),E[0:-1]/1e6,SigmaT,SigmaF,v/1e9,nu_prompt+nu_delayed,chi_prompt[:,0])),
+               ("Group","E (MeV)","$\\Sigma_\\mathrm{t}$ (cm$^{-1}$)","$\\Sigma_\\mathrm{f}$ (cm$^{-1}$)","v (cm/ns)","$\\nu$","\\chi_\\mathrm{p}$"),
+               floatfmt=(".0f","f", ".5f", ".5f", ".5f", ".5f",".6f"),
+               tablefmt="latex_raw"))
+#assert(0)
 # More data
 E_mid            = 0.5*(E[1:]+E[:-1])
 dE               = E[1:]-E[:-1]
