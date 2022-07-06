@@ -5,10 +5,12 @@ Created on Fri Jan 19 15:06:37 2018
 
 @author: ryanmcclarren
 """
-
+import numba as nb
+from numba import njit, jit, float64, int32
 import numpy as np
 import math
 import matplotlib.pyplot as plt
+@jit(float64[:](int32,float64,float64[:],float64[:],float64,float64))
 def sweep1D(I,hx,q,sigma_t,mu,boundary):
     """Compute a transport sweep for a given
     Inputs:
@@ -23,6 +25,8 @@ def sweep1D(I,hx,q,sigma_t,mu,boundary):
     """
     assert(np.abs(mu) > 1e-10)
     psi = np.zeros(I)
+    psi_left = 0.0
+    psi_right = 0.0
     ihx = 1/hx
     if (mu > 0): 
         psi_left = boundary
@@ -32,13 +36,14 @@ def sweep1D(I,hx,q,sigma_t,mu,boundary):
             psi_left = psi_right
     else:
         psi_right = boundary
-        for i in reversed(range(I)):
+        for i in range(I-1,-1,-1): #list(reversed(range(I))):
             psi_left = (q[i] + (-mu*ihx-0.5*sigma_t[i])*psi_right)/(0.5*sigma_t[i] - mu*ihx)
             psi[i] = 0.5*(psi_right + psi_left)
             psi_right = psi_left
     return psi
 
-def source_iteration(I,hx,q,sigma_t,sigma_s,N,BCs, tolerance = 1.0e-8,maxits = 100, LOUD=False,psi_s =  0 ):
+@jit(nb.types.Tuple((nb.float64[:], float64[:], nb.float64[:,:]))(int32,int32,float64,float64[:],float64[:],float64[:],float64[:],float64[:],float64[:],float64,int32,int32,float64[:,:]))
+def source_iteration(I,N,hx,q,sigma_t,sigma_s,MU,W,BCs, tolerance = 1.0e-8,maxits = 100, LOUD=False,psi_s =  0 ):
     """Perform source iteration for single-group steady state problem
     Inputs:
         I:               number of zones 
@@ -58,8 +63,7 @@ def source_iteration(I,hx,q,sigma_t,sigma_s,N,BCs, tolerance = 1.0e-8,maxits = 1
     phi_old = phi.copy()
     psi_mid = np.zeros((I,N))
     converged = False
-    MU, W = np.polynomial.legendre.leggauss(N)
-    oppmap = np.ndarray((N), dtype=int)
+    oppmap = np.zeros(N, dtype=int32)
     for ord in range(N):
         oppmap[ord] = np.argmin(-MU[ord] - MU)
     iteration = 1
@@ -91,7 +95,8 @@ def source_iteration(I,hx,q,sigma_t,sigma_s,N,BCs, tolerance = 1.0e-8,maxits = 1
     x = np.linspace(hx/2,I*hx-hx/2,I)
     return x, phi, psi_mid
 
-def source_iteration_td(I,hx,q,sigma_t,sigma_s,N,BCs, tolerance = 1.0e-8,maxits = 100, LOUD=False,psi_s =  0 ):
+@jit(nb.types.Tuple((nb.float64[:], float64[:], nb.float64[:,:]))(int32,int32,float64,float64[:,:],float64[:],float64[:],float64[:],float64[:],float64[:],float64,int32,int32,float64[:,:]))
+def source_iteration_td(I,N,hx,q,sigma_t,sigma_s,MU,W,BCs, tolerance = 1.0e-8,maxits = 100, LOUD=False,psi_s =  0 ):
     """Perform source iteration for single-group steady state problem
     Inputs:
         I:               number of zones 
@@ -111,8 +116,7 @@ def source_iteration_td(I,hx,q,sigma_t,sigma_s,N,BCs, tolerance = 1.0e-8,maxits 
     phi_old = phi.copy()
     psi_mid = np.zeros((I,N))
     converged = False
-    MU, W = np.polynomial.legendre.leggauss(N)
-    oppmap = np.ndarray((N), dtype=int)
+    oppmap = np.zeros(N, dtype='int32')
     for ord in range(N):
         oppmap[ord] = np.argmin(-MU[ord] - MU)
     iteration = 1
@@ -184,8 +188,8 @@ def multigroup_ss(I,hx,G,q,sigma_t,sigma_s,nusigma_f,chi,N,BCs, tolerance = 1.0e
                 Q += 0.5*(phi[:,gprime]*sigma_s[:,gprime,g]*(gprime != g) + chi[:,g] * phi[:,gprime] * nusigma_f[:,gprime])
             if (LOUD > 0):
                 print("Group",g)
-            x,phi[:,g],psi_mid = source_iteration(I,hx,Q,sigma_t[:,g],sigma_s[:,g,g],N,BCcopy[:,g], 
-                                        tolerance = tolerance*0.1,maxits = 1000, LOUD=LOUD-1,
+            x,phi[:,g],psi_mid = source_iteration(I,N,hx,Q,sigma_t[:,g],sigma_s[:,g,g],MU,W,BCcopy[:,g], 
+                                        tolerance = tolerance*0.1,maxits = 10000, LOUD=LOUD-1,
                                         psi_s = 0*psi_mid)
             
             psi_full[:,:,g] = psi_mid.copy()
@@ -245,7 +249,7 @@ def multigroup_ss_td(I,hx,G,q,sigma_t,sigma_s,nusigma_f,chi,N,BCs, tolerance = 1
                     Q[:,angle] += 0.5*(phi[:,gprime]*sigma_s[:,gprime,g]*(gprime != g) + chi[:,g] * phi[:,gprime] * nusigma_f[:,gprime])
             if (LOUD > 0):
                 print("Group",g)
-            x,phi[:,g],psi_mid = source_iteration_td(I,hx,Q,sigma_t[:,g],sigma_s[:,g,g],N,BCcopy[:,g], 
+            x,phi[:,g],psi_mid = source_iteration_td(I,N,hx,Q,sigma_t[:,g],sigma_s[:,g,g],MU,W,BCcopy[:,g], 
                                         tolerance = tolerance*0.1,maxits = 1000, LOUD=LOUD-1,
                                         psi_s = 0*psi_mid)
             psi_full[:,:,g] = psi_mid.copy()
@@ -354,10 +358,13 @@ def multigroup_alpha(I,hx,G,sigma_t,sigma_s,nusigma_f,chi,N,BCs,inv_speed,min_al
         else:
             for g in range(G):
                 sigma_sstar[i,g,g] = sigma_sstar[i,g,g] - alpha*inv_speed[g]
-            
-    x, k, phi_old, phi_thermal, phi_epithermal,phi_fast = multigroup_k(I,hx,G,sigstar,sigma_sstar,nusigma_f,chi,N,BCs,data_struct,phi, tolerance = tolerance*100,maxits = 100, LOUD=LOUD-1 )
+    if (data_struct is not None):
+        x, k, phi_old, phi_thermal, phi_epithermal,phi_fast = multigroup_k(I,hx,G,sigstar,sigma_sstar,nusigma_f,chi,N,BCs,data_struct,phi, tolerance = tolerance*100,maxits = 100, LOUD=LOUD-1 )
+    else:
+        x, k, phi_old = multigroup_k(I,hx,G,sigstar,sigma_sstar,nusigma_f,chi,N,BCs,data_struct,phi, tolerance = tolerance*100,maxits = 100, LOUD=LOUD-1 )
+
     print("k at min alpha =", k)
-    assert(k<1)
+    assert(k>1)
     
     
     alpha = max_alpha
@@ -367,10 +374,13 @@ def multigroup_alpha(I,hx,G,sigma_t,sigma_s,nusigma_f,chi,N,BCs,inv_speed,min_al
         else:
             for g in range(G):
                 sigma_sstar[i,g,g] = sigma_sstar[i,g,g] - alpha*inv_speed[g]
-            
-    x, k, phi_old, phi_thermal, phi_epithermal,phi_fast= multigroup_k(I,hx,G,sigstar,sigma_sstar,nusigma_f,chi,N,BCs,data_struct,phi, tolerance = tolerance*100,maxits = 100, LOUD=LOUD-1 )
+    if (data_struct is not None):        
+        x, k, phi_old, phi_thermal, phi_epithermal,phi_fast= multigroup_k(I,hx,G,sigstar,sigma_sstar,nusigma_f,chi,N,BCs,data_struct,phi, tolerance = tolerance*100,maxits = 100, LOUD=LOUD-1 )
+    else:
+        x, k, phi_old = multigroup_k(I,hx,G,sigstar,sigma_sstar,nusigma_f,chi,N,BCs,data_struct,phi, tolerance = tolerance*100,maxits = 100, LOUD=LOUD-1 )
+
     print("k at max alpha =", k)
-    assert(k>1)
+    assert(k<1)
     converged = 0
     step = 0
     while not(converged):
@@ -381,8 +391,11 @@ def multigroup_alpha(I,hx,G,sigma_t,sigma_s,nusigma_f,chi,N,BCs,inv_speed,min_al
                 for g in range(G):
                     sigma_sstar[i,g,g] = sigma_sstar[i,g,g] - alpha*inv_speed[g]
                 
-        x, k, phi_old, phi_thermal, phi_epithermal,phi_fast = multigroup_k(I,hx,G,sigstar,sigma_sstar,nusigma_f,chi,N,BCs,data_struct,phi, tolerance = tolerance,maxits = 100, LOUD=LOUD-1 )
-        if (k<1):
+        if (data_struct is not None):        
+            x, k, phi_old, phi_thermal, phi_epithermal,phi_fast = multigroup_k(I,hx,G,sigstar,sigma_sstar,nusigma_f,chi,N,BCs,data_struct,phi, tolerance = tolerance,maxits = 100, LOUD=LOUD-1 )
+        else:
+            x, k, phi_old = multigroup_k(I,hx,G,sigstar,sigma_sstar,nusigma_f,chi,N,BCs,data_struct,phi, tolerance = tolerance*100,maxits = 100, LOUD=LOUD-1 )
+        if (k>1):
             min_alpha = alpha
         else:
             max_alpha = alpha
