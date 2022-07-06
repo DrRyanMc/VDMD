@@ -59,4 +59,4 @@ def compute_alpha(psi_input,skip,nsteps,I,G,N,dt):
     Atilde = np.dot(np.dot(np.dot(np.matrix(unew).getH(),phiDT),np.matrix(vnew).getH()),S)
     #print("Atilde size =", Atilde.shape)
     [eigsN,vsN] = np.linalg.eig(Atilde)
-    return eigsN, vsN,u
+    return eigsN, vsN,unew
